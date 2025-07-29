@@ -3,12 +3,12 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDjMUEHFjYJ3J3ncWZhVI7KvErwD0JlGiA",
-  authDomain: "nextjs-teste-9c06c.firebaseapp.com",
-  projectId: "nextjs-teste-9c06c",
-  storageBucket: "nextjs-teste-9c06c.firebasestorage.app",
-  messagingSenderId: "532623484087",
-  appId: "1:532623484087:web:6b38c2a87c3ea60d1c5932"
+  apiKey: "AIzaSyCAs6zdaK10zA7wPCUZjPr8W4XfEJodHGI",
+  authDomain: "reservas-alojamentos.firebaseapp.com",
+  projectId: "reservas-alojamentos",
+  storageBucket: "reservas-alojamentos.firebasestorage.app",
+  messagingSenderId: "109231578163",
+  appId: "1:109231578163:web:67094368f86b375d841746"
 };
 
 // Initialize Firebase only if it hasn't been initialized already

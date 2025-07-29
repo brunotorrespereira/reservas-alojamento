@@ -5,13 +5,11 @@ import autoTable from "jspdf-autotable";
 
 interface Reserva {
   id: string;
-  data: string;
-  horarioInicio: string;
-  horarioFim: string;
-  auditorio: string;
-  solicitante: string;
-  evento: string;
-  observacoes: string;
+  nome: string;
+  email: string;
+  genero: "masculino" | "feminino" | "homem" | "mulher";
+  semana: string;
+  status: "ativa" | "cancelada";
   criador?: string;
 }
 
@@ -24,25 +22,36 @@ interface MinhasReservasModalProps {
 
 export default function MinhasReservasModal({ open, onClose, reservas, userEmail }: MinhasReservasModalProps) {
   if (!open) return null;
-  const minhasReservas = reservas.filter(r => r.criador && r.criador.toLowerCase() === userEmail.toLowerCase());
+  const minhasReservas = reservas.filter(r => r.criador && r.criador.toLowerCase() === userEmail.toLowerCase())
+    .sort((a, b) => {
+      // Ordenar por data (mais recente primeiro)
+      return new Date(b.semana).getTime() - new Date(a.semana).getTime();
+    });
 
-  // Função para exportar PDF das reservas do usuário
+  // Função para converter gênero para exibição
+  const converterGeneroParaExibicao = (genero: string) => {
+    if (genero === "homem") return "Masculino";
+    if (genero === "mulher") return "Feminino";
+    if (genero === "masculino") return "Masculino";
+    if (genero === "feminino") return "Feminino";
+    return genero;
+  };
+
   const exportarPDF = () => {
     if (minhasReservas.length === 0) return;
     const doc = new jsPDF();
     doc.setFontSize(20);
-    doc.text("Minhas Reservas de Auditório", 20, 20);
+          doc.text("Minhas Reservas de Alojamento", 20, 20);
     doc.setFontSize(12);
     doc.text(`Data de geração: ${new Date().toLocaleDateString('pt-BR')}`, 20, 30);
     const tableData = minhasReservas.map(reserva => [
-      reserva.data,
-      `${reserva.horarioInicio} - ${reserva.horarioFim}`,
-      reserva.auditorio,
-      reserva.evento,
-      reserva.observacoes || "-"
+      reserva.nome,
+      converterGeneroParaExibicao(reserva.genero),
+      reserva.semana,
+      reserva.status
     ]);
     autoTable(doc, {
-      head: [["Data", "Horário", "Auditório", "Evento", "Observações"]],
+      head: [["Nome", "Gênero", "Semana", "Status"]],
       body: tableData,
       startY: 40,
       styles: { fontSize: 10, cellPadding: 3 },
@@ -79,24 +88,22 @@ export default function MinhasReservasModal({ open, onClose, reservas, userEmail
           <div className="text-center text-gray-300">Você não possui reservas.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-white">
+            <table className="w-full text-white table-fixed">
               <thead>
                 <tr className="border-b border-white/20">
-                  <th className="py-2 px-3">Data</th>
-                  <th className="py-2 px-3">Horário</th>
-                  <th className="py-2 px-3">Auditório</th>
-                  <th className="py-2 px-3">Evento</th>
-                  <th className="py-2 px-3">Observações</th>
+                  <th className="py-2 px-3 text-left w-1/4">Nome</th>
+                  <th className="py-2 px-3 text-center w-1/6">Gênero</th>
+                  <th className="py-2 px-3 text-center w-1/3">Semana</th>
+                  <th className="py-2 px-3 text-center w-1/6">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {minhasReservas.map((reserva) => (
-                  <tr key={reserva.id} className="border-b border-white/10 hover:bg-white/5">
-                    <td className="py-2 px-3">{reserva.data}</td>
-                    <td className="py-2 px-3">{reserva.horarioInicio} - {reserva.horarioFim}</td>
-                    <td className="py-2 px-3">{reserva.auditorio}</td>
-                    <td className="py-2 px-3">{reserva.evento}</td>
-                    <td className="py-2 px-3">{reserva.observacoes || "-"}</td>
+                  <tr key={reserva.id} className="border-b border-white/10">
+                    <td className="py-2 px-3 text-left">{reserva.nome}</td>
+                    <td className="py-2 px-3 text-center">{converterGeneroParaExibicao(reserva.genero)}</td>
+                    <td className="py-2 px-3 text-center">{reserva.semana}</td>
+                    <td className="py-2 px-3 text-center">{reserva.status}</td>
                   </tr>
                 ))}
               </tbody>

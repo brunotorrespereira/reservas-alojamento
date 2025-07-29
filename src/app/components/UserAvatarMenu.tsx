@@ -33,13 +33,19 @@ export default function UserAvatarMenu({ nome, email, onLogout, onShowMinhasRese
 
   return (
     <div className="relative" ref={menuRef}>
-      <button
-        className="w-11 h-11 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold text-lg shadow-lg hover:bg-cyan-700 transition-colors focus:outline-none"
-        onClick={() => setOpen((v) => !v)}
-        aria-label="Abrir menu do usuário"
-      >
-        {getInitials(nome)}
-      </button>
+      <div className="flex items-center gap-3">
+        <div className="flex flex-col">
+          <span className="text-white font-medium text-sm">Meu Perfil</span>
+          <span className="text-gray-300 text-xs">{nome}</span>
+        </div>
+        <button
+          className="w-11 h-11 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold text-lg shadow-lg hover:bg-cyan-700 transition-colors focus:outline-none"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Abrir menu do usuário"
+        >
+          {getInitials(nome)}
+        </button>
+      </div>
       {open && (
         <div className="absolute right-0 mt-2 w-64 bg-black border border-white/20 rounded-xl shadow-xl z-50 p-4 animate-fade-in">
           <div className="flex flex-col items-center mb-4">

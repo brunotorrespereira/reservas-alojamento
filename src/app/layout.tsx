@@ -14,12 +14,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ECE Sistema de Reservas",
-  description: "Sistema de reservas de auditório da ECE.",
-  keywords: "reserva, auditório, ECE, sistema",
+          description: "Sistema de reservas de alojamento da ECE.",
+        keywords: "reserva, alojamento, ECE, sistema",
   authors: [{ name: "ECE Sistema de Reservas" }],
   openGraph: {
     title: "ECE Sistema de Reservas",
-    description: "Gerencie e reserve auditórios facilmente na ECE",
+      description: "Gerencie e reserve alojamentos facilmente na ECE",
   },
 };
 
