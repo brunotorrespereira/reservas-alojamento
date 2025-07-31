@@ -24,11 +24,43 @@ export default function Login({ onLoginSuccess, onShowCadastro }: LoginProps) {
     setError("");
     
     try {
+      console.log("🔐 Tentando fazer login com:", loginData.email);
+      console.log("🔧 Auth object:", auth);
+      
       await signInWithEmailAndPassword(auth, loginData.email, loginData.password);
+      console.log("✅ Login realizado com sucesso!");
       onLoginSuccess();
     } catch (error: any) {
-      console.error("Erro no login:", error);
-      setError("Erro no login. Verifique suas credenciais.");
+      console.error("❌ Erro detalhado no login:", {
+        code: error.code,
+        message: error.message,
+        fullError: error
+      });
+      
+      // Mensagens de erro mais específicas
+      let errorMessage = "Erro no login. Verifique suas credenciais.";
+      
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = "Usuário não encontrado. Verifique o email.";
+          break;
+        case 'auth/wrong-password':
+          errorMessage = "Senha incorreta.";
+          break;
+        case 'auth/invalid-email':
+          errorMessage = "Email inválido.";
+          break;
+        case 'auth/invalid-api-key':
+          errorMessage = "Erro de configuração do Firebase. Contate o administrador.";
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = "Erro de conexão. Verifique sua internet.";
+          break;
+        default:
+          errorMessage = `Erro: ${error.code} - ${error.message}`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -24,7 +24,6 @@ import Login from "./components/Login";
 import Cadastro from "./components/Cadastro";
 import UserAvatarMenu from "./components/UserAvatarMenu";
 import MinhasReservasModal from "./components/MinhasReservasModal";
-import { Metadata } from "next";
 
 interface Reserva {
   id: string;
@@ -781,6 +780,16 @@ export default function ReservaAlojamento() {
         ))}
       </div>
 
+            {/* Avatar do usuário no topo direito */}
+      <div className="absolute top-4 right-4 z-50">
+        <UserAvatarMenu
+          nome={user?.displayName || (user?.email ? user.email.split("@")[0] : "Usuário")}
+          email={user?.email || ""}
+          onLogout={handleLogout}
+          onShowMinhasReservas={() => setShowMinhasReservas(true)}
+        />
+      </div>
+
       <MinhasReservasModal
         open={showMinhasReservas}
         onClose={() => setShowMinhasReservas(false)}
@@ -791,6 +800,7 @@ export default function ReservaAlojamento() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
+          
           <div className="inline-flex items-center justify-center w-40 h-40 mb-6">
             <img
               src="/logo_ece.png"
@@ -804,16 +814,6 @@ export default function ReservaAlojamento() {
           <p className="text-gray-300 text-lg md:text-xl">
             Gerencie suas reservas de alojamento de forma simples e eficiente
           </p>
-          
-          {/* Avatar do usuário no topo direito */}
-          <div className="absolute top-8 right-8">
-            <UserAvatarMenu
-              nome={user?.displayName || user?.email?.split("@")[0] || "Usuário"}
-              email={user?.email || ""}
-              onLogout={handleLogout}
-              onShowMinhasReservas={() => setShowMinhasReservas(true)}
-            />
-          </div>
         </div>
 
 
@@ -1079,11 +1079,11 @@ export default function ReservaAlojamento() {
             <button
               onClick={exportarPDF}
               disabled={reservasFiltradas.length === 0}
-              className={`px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 ${
+              className={`px-3 md:px-6 py-2 md:py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-1 md:gap-2 text-xs md:text-sm ${
                 reservasFiltradas.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Exportar PDF
@@ -1096,14 +1096,14 @@ export default function ReservaAlojamento() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-white table-fixed">
+              <table className="w-full text-white min-w-full">
                 <thead>
                   <tr className="border-b border-white/20">
-                    <th className="py-2 px-3 text-left w-1/4">Nome</th>
-                    <th className="py-2 px-3 text-center w-1/6">Gênero</th>
-                    <th className="py-2 px-3 text-center w-1/3">Data</th>
-                    <th className="py-2 px-3 text-center w-1/6">Status</th>
-                    <th className="py-2 px-3 text-center w-1/6">Ações</th>
+                    <th className="py-2 px-2 md:px-3 text-left text-xs md:text-sm">Nome</th>
+                    <th className="py-2 px-1 md:px-3 text-center text-xs md:text-sm">Gênero</th>
+                    <th className="py-2 px-1 md:px-3 text-center text-xs md:text-sm">Data</th>
+                    <th className="py-2 px-1 md:px-3 text-center text-xs md:text-sm">Status</th>
+                    <th className="py-2 px-1 md:px-3 text-center text-xs md:text-sm">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1112,11 +1112,17 @@ export default function ReservaAlojamento() {
                     const podeExcluir = isAdmin;
                     return (
                       <tr key={reserva.id} className="border-b border-white/10 hover:bg-white/5">
-                        <td className="py-2 px-3 text-left">{reserva.nome}</td>
-                        <td className="py-2 px-3 text-center">{converterGeneroParaExibicao(reserva.genero)}</td>
-                        <td className="py-2 px-3 text-center">{formatarDataParaExibicao(reserva.semana)}</td>
-                        <td className="py-2 px-3 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        <td className="py-2 px-2 md:px-3 text-left text-xs md:text-sm truncate max-w-[120px] md:max-w-none">
+                          <span title={reserva.nome}>{reserva.nome}</span>
+                        </td>
+                        <td className="py-2 px-1 md:px-3 text-center text-xs md:text-sm">
+                          {converterGeneroParaExibicao(reserva.genero)}
+                        </td>
+                        <td className="py-2 px-1 md:px-3 text-center text-xs md:text-sm">
+                          {formatarDataParaExibicao(reserva.semana)}
+                        </td>
+                        <td className="py-2 px-1 md:px-3 text-center">
+                          <span className={`px-1 md:px-2 py-1 rounded-full text-xs font-medium ${
                             reserva.status === "ativa" 
                               ? "bg-green-500/20 text-green-300 border border-green-400/30" 
                               : "bg-red-500/20 text-red-300 border border-red-400/30"
@@ -1124,12 +1130,12 @@ export default function ReservaAlojamento() {
                             {reserva.status === "ativa" ? "Ativa" : "Cancelada"}
                           </span>
                         </td>
-                        <td className="py-2 px-3 text-center">
-                          <div className="flex gap-2 justify-center">
+                        <td className="py-2 px-1 md:px-3 text-center">
+                          <div className="flex gap-1 md:gap-2 justify-center">
                             {podeEditar && (
                               <button
                                 onClick={() => editarReserva(reserva)}
-                                className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                                className="px-2 md:px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs md:text-sm"
                               >
                                 Editar
                               </button>
@@ -1137,7 +1143,7 @@ export default function ReservaAlojamento() {
                             {podeExcluir && (
                               <button
                                 onClick={() => setShowDeleteConfirm(reserva.id)}
-                                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+                                className="px-2 md:px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs md:text-sm"
                               >
                                 Excluir
                               </button>

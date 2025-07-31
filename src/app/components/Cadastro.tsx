@@ -35,11 +35,43 @@ export default function Cadastro({ onCadastroSuccess, onVoltarParaLogin }: Cadas
     }
 
     try {
+      console.log("🔐 Tentando criar conta com:", email);
+      console.log("🔧 Auth object:", auth);
+      
       await createUserWithEmailAndPassword(auth, email, password);
+      console.log("✅ Conta criada com sucesso!");
       onCadastroSuccess();
     } catch (error: any) {
-      console.error("Erro no cadastro:", error);
-      setError("Erro no cadastro. Tente novamente.");
+      console.error("❌ Erro detalhado no cadastro:", {
+        code: error.code,
+        message: error.message,
+        fullError: error
+      });
+      
+      // Mensagens de erro mais específicas
+      let errorMessage = "Erro no cadastro. Tente novamente.";
+      
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = "Este email já está em uso. Tente fazer login.";
+          break;
+        case 'auth/invalid-email':
+          errorMessage = "Email inválido.";
+          break;
+        case 'auth/weak-password':
+          errorMessage = "Senha muito fraca. Use pelo menos 6 caracteres.";
+          break;
+        case 'auth/invalid-api-key':
+          errorMessage = "Erro de configuração do Firebase. Contate o administrador.";
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = "Erro de conexão. Verifique sua internet.";
+          break;
+        default:
+          errorMessage = `Erro: ${error.code} - ${error.message}`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

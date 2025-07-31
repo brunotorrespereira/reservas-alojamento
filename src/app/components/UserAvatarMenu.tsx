@@ -33,9 +33,9 @@ export default function UserAvatarMenu({ nome, email, onLogout, onShowMinhasRese
 
   return (
     <div className="relative" ref={menuRef}>
-      <div className="flex items-center gap-3">
-        <div className="flex flex-col">
-          <span className="text-white font-medium text-sm">Meu Perfil</span>
+      <div className="flex items-center gap-2">
+        <div className="flex flex-col items-end">
+          <span className="text-white font-medium text-xs md:text-sm">Meu Perfil</span>
           <span className="text-gray-300 text-xs">{nome}</span>
         </div>
         <button
