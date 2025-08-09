@@ -2,18 +2,14 @@ import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
-// Verificar se as variáveis de ambiente estão carregadas
-if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-  console.warn("⚠️ Variáveis de ambiente não carregadas. Verifique o arquivo .env.local");
-}
-
+// Configuração temporária com chaves hardcoded
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+  apiKey: "AIzaSyCAs6zdaK10zA7wPCUZjPr8W4XfEJodHGI",
+  authDomain: "reservas-alojamentos.firebaseapp.com",
+  projectId: "reservas-alojamentos",
+  storageBucket: "reservas-alojamentos.firebasestorage.app",
+  messagingSenderId: "109231578163",
+  appId: "1:109231578163:web:67094368f86b375d841746"
 };
 
 

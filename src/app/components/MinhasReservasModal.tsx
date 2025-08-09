@@ -70,21 +70,21 @@ export default function MinhasReservasModal({ open, onClose, reservas, userEmail
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 w-full max-w-2xl border border-white/20 relative">
         <div className="flex justify-between items-center mb-6">
-          <button
+        <button
             className="text-white bg-green-600 hover:bg-green-700 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold transition-colors"
-            onClick={exportarPDF}
-            disabled={minhasReservas.length === 0}
-          >
-            Exportar PDF
-          </button>
+          onClick={exportarPDF}
+          disabled={minhasReservas.length === 0}
+        >
+          Exportar PDF
+        </button>
           <h2 className="text-xl md:text-2xl font-bold text-white">Minhas Reservas</h2>
-          <button
+        <button
             className="text-white text-xl md:text-2xl hover:text-red-400"
-            onClick={onClose}
-            aria-label="Fechar"
-          >
-            ×
-          </button>
+          onClick={onClose}
+          aria-label="Fechar"
+        >
+          ×
+        </button>
         </div>
         {minhasReservas.length === 0 ? (
           <div className="text-center text-gray-300">Você não possui reservas.</div>

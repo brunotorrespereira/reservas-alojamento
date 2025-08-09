@@ -43,28 +43,29 @@ interface Toast {
 }
 
 export default function ReservaAlojamento() {
-  // Função para obter a próxima segunda-feira
+  // Função para obter a data padrão (hoje ou amanhã)
   const obterProximaSegunda = () => {
     const hoje = new Date();
-    const diaSemana = hoje.getDay(); // 0 = domingo, 1 = segunda, 2 = terça, etc.
     
-    // Calcular quantos dias adicionar para chegar na segunda-feira da semana atual
-    let diasParaSegunda;
-    if (diaSemana === 1) { // Se hoje é segunda
-      diasParaSegunda = 0; // Segunda atual
-    } else if (diaSemana === 0) { // Se hoje é domingo
-      diasParaSegunda = 1; // Próxima segunda (1 dia depois)
-    } else { // Se hoje é terça a sábado
-      diasParaSegunda = 1 - diaSemana; // Dias até segunda-feira da semana atual
+    // Se hoje é sexta-feira após 12h, mostrar amanhã (sábado)
+    // Senão, mostrar hoje
+    const diaSemana = hoje.getDay();
+    const hora = hoje.getHours();
+    
+    let dataPadrao;
+    if (diaSemana === 5 && hora >= 12) { // Sexta-feira após 12h
+      // Mostrar amanhã (sábado)
+      dataPadrao = new Date(hoje);
+      dataPadrao.setDate(hoje.getDate() + 1);
+    } else {
+      // Mostrar hoje
+      dataPadrao = new Date(hoje);
     }
     
-    const segundaAtual = new Date(hoje);
-    segundaAtual.setDate(hoje.getDate() + diasParaSegunda);
-    
     // Formatar manualmente para evitar problemas de timezone
-    const ano = segundaAtual.getFullYear();
-    const mes = String(segundaAtual.getMonth() + 1).padStart(2, '0');
-    const dia = String(segundaAtual.getDate()).padStart(2, '0');
+    const ano = dataPadrao.getFullYear();
+    const mes = String(dataPadrao.getMonth() + 1).padStart(2, '0');
+    const dia = String(dataPadrao.getDate()).padStart(2, '0');
     
     return `${ano}-${mes}-${dia}`;
   };
@@ -141,12 +142,12 @@ export default function ReservaAlojamento() {
   useEffect(() => {
     if (user?.email) {
       // Limpar formulário quando um novo usuário logar
-      setFormData({
+            setFormData({
         nome: "",
         genero: "",
-        semana: obterProximaSegunda()
+        semana: getDataPadraoReserva()
       });
-      setEditandoId(null); // Resetar modo de edição
+       setEditandoId(null); // Resetar modo de edição
     }
   }, [user?.email]);
 
@@ -183,85 +184,179 @@ export default function ReservaAlojamento() {
     return hora * 60 + minuto;
   };
 
-  // Função para verificar se as reservas estão abertas
-  const verificarReservasAbertas = () => {
+  // Função para obter início da semana ativa (última sexta-feira às 12:00, usando horário local)
+  const getInicioDaSemanaAtual = (base: Date): Date => {
+    const sexta = new Date(base);
+    const diaSemana = sexta.getDay(); // 0=domingo ... 5=sexta
+    const diff = diaSemana >= 5 ? diaSemana - 5 : diaSemana + 2; // conforme especificação
+    sexta.setDate(sexta.getDate() - diff);
+    sexta.setHours(12, 0, 0, 0);
+    return sexta;
+  };
+
+  // Função para obter fim da semana ativa (quinta às 23:59:59.999 a partir do início)
+  const getFimDaSemanaAtual = (inicio: Date): Date => {
+    const fim = new Date(inicio);
+    fim.setDate(fim.getDate() + 6);
+    fim.setHours(23, 59, 59, 999);
+    return fim;
+  };
+
+  // Helper: formatar Date -> 'YYYY-MM-DD' (local)
+  const formatarDataISO = (d: Date): string => {
+    const ano = d.getFullYear();
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const dia = String(d.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+  };
+
+  // Dada uma data (YYYY-MM-DD), retorna a sexta-feira (data) que inicia a janela daquela semana
+  const obterSextaDaJanela = (data: string): string => {
+    const [ano, mes, dia] = data.split('-').map(Number);
+    const base = new Date(ano, mes - 1, dia);
+    const dow = base.getDay();
+    const diff = dow >= 5 ? dow - 5 : dow + 2; // 5 = sexta
+    const sexta = new Date(base);
+    sexta.setDate(base.getDate() - diff);
+    return formatarDataISO(sexta);
+  };
+
+  // Dada a sexta-feira da janela (YYYY-MM-DD), retorna a quinta-feira final (YYYY-MM-DD)
+  const obterQuintaDaJanela = (sextaStr: string): string => {
+    const [ano, mes, dia] = sextaStr.split('-').map(Number);
+    const sexta = new Date(ano, mes - 1, dia);
+    const quinta = new Date(sexta);
+    quinta.setDate(sexta.getDate() + 6);
+    return formatarDataISO(quinta);
+  };
+
+  // Data padrão para o input: sexta da janela ativa se sistema aberto; senão, mantém hoje
+  const getDataPadraoReserva = (): string => {
+    const agora = new Date();
+    const inicio = getInicioDaSemanaAtual(agora); // sexta 12:00 da janela corrente (considerando horário)
+    const sextaStr = formatarDataISO(inicio); // data (ignora horário)
+
+    if (sistemaEstaAberto()) {
+      // Se hoje é fim de semana, preferir a próxima segunda dentro da janela; senão usar hoje se dia útil, senão a sexta
+      const dow = agora.getDay();
+      if (dow >= 1 && dow <= 5) {
+        return formatarDataISO(new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()));
+      }
+      return sextaStr;
+    }
+
+    // Fora do horário de funcionamento, mantém a sexta da próxima janela (após abertura)
+    const proximaJanelaInicio = new Date(inicio);
+    // Se ainda não abriu (sexta antes das 12), usar a mesma data;
+    // caso contrário, próxima semana (sexta + 7)
+    if (agora.getDay() === 5 && agora.getHours() < 12) {
+      return sextaStr;
+    }
+    proximaJanelaInicio.setDate(proximaJanelaInicio.getDate() + 7);
+    return formatarDataISO(proximaJanelaInicio);
+  };
+
+  // Função para determinar se o sistema está aberto ou fechado
+  const sistemaEstaAberto = () => {
     const agora = new Date();
     const diaSemana = agora.getDay(); // 0 = domingo, 1 = segunda, 2 = terça, 3 = quarta, 4 = quinta, 5 = sexta, 6 = sábado
     const hora = agora.getHours();
     const minuto = agora.getMinutes();
     
-    // Sexta-feira após 12h até quinta-feira 23:59 (incluindo fim de semana)
+    console.log("=== VERIFICAÇÃO DO SISTEMA ===");
+    console.log("Data atual:", agora.toLocaleDateString('pt-BR'));
+    console.log("Hora atual:", agora.toLocaleTimeString('pt-BR'));
+    console.log("UTC:", agora.toISOString());
+    console.log("Dia da semana:", diaSemana);
+    console.log("Hora local:", hora);
+    console.log("Minuto local:", minuto);
+    
+    let reservasAbertas = false;
+    
     if (diaSemana === 5) { // Sexta-feira
-      return (hora >= 12); // Abre sexta às 12h
+      if (hora >= 12) {
+        reservasAbertas = true;
+      }
     } else if (diaSemana === 4) { // Quinta-feira
-      return true; // Aberto até quinta 23:59
-    } else if (diaSemana === 6 || diaSemana === 0) { // Sábado e domingo
-      return true; // Aberto no fim de semana
-    } else if (diaSemana >= 1 && diaSemana <= 3) { // Segunda, terça, quarta
-      return true; // Aberto durante a semana
+      if (hora < 23 || (hora === 23 && minuto <= 59)) {
+        reservasAbertas = true;
+      }
+    } else if (diaSemana !== 5) {
+      reservasAbertas = true; // Sábado, Domingo, Segunda, Terça, Quarta
     }
     
-    return false;
+    console.log("Sistema aberto:", reservasAbertas);
+    return reservasAbertas;
   };
 
-  // Função para verificar se a data é da próxima semana
+  // Função para verificar se a data está dentro da semana permitida
+  const estaDentroDaSemanaPermitida = (dataReserva: Date): boolean => {
+    const agora = new Date();
+
+    // Limites da semana ativa com base no "agora"
+    const inicioSemana = getInicioDaSemanaAtual(agora);
+    const fimSemana = getFimDaSemanaAtual(inicioSemana);
+
+    // Normalizar a data de reserva para evitar timezone/horário
+    const dataNormalizada = new Date(
+      dataReserva.getFullYear(),
+      dataReserva.getMonth(),
+      dataReserva.getDate(),
+      0, 0, 0, 0
+    );
+
+    console.log("=== VERIFICAÇÃO DE SEMANA PERMITIDA ===");
+    console.log("Data atual:", agora.toLocaleDateString('pt-BR'), agora.toLocaleTimeString('pt-BR'));
+    console.log("Data da reserva:", dataNormalizada.toLocaleDateString('pt-BR'));
+    console.log("Início da semana:", inicioSemana.toLocaleDateString('pt-BR'), inicioSemana.toLocaleTimeString('pt-BR'));
+    console.log("Fim da semana:", fimSemana.toLocaleDateString('pt-BR'), fimSemana.toLocaleTimeString('pt-BR'));
+
+    const dentroDoIntervalo = dataNormalizada >= inicioSemana && dataNormalizada <= fimSemana;
+    console.log("Dentro do intervalo permitido:", dentroDoIntervalo);
+
+    return dentroDoIntervalo;
+  };
+
+  // Função para verificar se a data é permitida para reserva
   const verificarDataProximaSemana = (data: string) => {
+    // Criar objeto de data em horário local (sem UTC)
+    const [ano, mes, dia] = data.split('-').map(Number);
+    const dataObj = new Date(ano, mes - 1, dia);
+
+    // Comparação apenas por data (sem horário)
     const hoje = new Date();
-    const dataObj = new Date(data);
-    
-    // Verificar se a data é hoje ou no futuro (não no passado)
-    if (dataObj < hoje) {
+    const hojeSemHora = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    const dataSemHora = new Date(dataObj.getFullYear(), dataObj.getMonth(), dataObj.getDate());
+
+    // Não permitir datas no passado
+    if (dataSemHora < hojeSemHora) {
       return false;
     }
-    
-    // Verificar se é segunda, terça, quarta, quinta ou sexta (0=domingo, 1=segunda, 2=terça, 3=quarta, 4=quinta, 5=sexta, 6=sábado)
-    const diaSemana = dataObj.getDay();
-    if (diaSemana < 1 || diaSemana > 5) {
-      return false; // Não é dia útil
-    }
-    
-    // Calcular a quinta-feira da semana atual
-    const hojeObj = new Date();
-    const diaSemanaHoje = hojeObj.getDay();
-    let diasParaQuinta;
-    
-    if (diaSemanaHoje === 4) { // Se hoje é quinta
-      diasParaQuinta = 0;
-    } else if (diaSemanaHoje === 5) { // Se hoje é sexta
-      diasParaQuinta = 6; // Próxima quinta (6 dias depois)
-    } else if (diaSemanaHoje === 6) { // Se hoje é sábado
-      diasParaQuinta = 5; // Próxima quinta (5 dias depois)
-    } else if (diaSemanaHoje === 0) { // Se hoje é domingo
-      diasParaQuinta = 4; // Próxima quinta (4 dias depois)
-    } else { // Se hoje é segunda, terça ou quarta
-      diasParaQuinta = 4 - diaSemanaHoje; // Dias até quinta desta semana
-    }
-    
-    const quintaAtual = new Date(hojeObj);
-    quintaAtual.setDate(hojeObj.getDate() + diasParaQuinta);
-    
-    // Verificar se a data selecionada está até quinta-feira da semana atual
-    return dataObj <= quintaAtual;
+
+    // Removido: restrição a dias úteis (permitir sáb/dom dentro da janela)
+
+    // Precisa estar dentro da semana ativa (sexta 12:00 até quinta 23:59)
+    return estaDentroDaSemanaPermitida(dataObj);
   };
 
   // Função para verificar se pode criar reserva (horário + lotação + semana)
   const verificarPodeCriarReserva = (data: string, genero: string) => {
-    // Primeiro verifica se está no horário permitido
-    if (!verificarReservasAbertas()) {
-      return { pode: false, motivo: "horario" };
+    // 1) Horário do sistema
+    if (!sistemaEstaAberto()) {
+      return { pode: false, motivo: "horario" } as const;
     }
-    
-    // Depois verifica se é da próxima semana
+
+    // 2) Janela/semana permitida
     if (!verificarDataProximaSemana(data)) {
-      return { pode: false, motivo: "semana" };
+      return { pode: false, motivo: "semana" } as const;
     }
-    
-    // Por último verifica se há lotação máxima
+
+    // 3) Lotação máxima
     if (verificarLotacaoMaxima(data, genero)) {
-      return { pode: false, motivo: "lotacao" };
+      return { pode: false, motivo: "lotacao" } as const;
     }
-    
-    return { pode: true, motivo: "" };
+
+    return { pode: true, motivo: "" } as const;
   };
 
   // Função para obter mensagem de status das reservas
@@ -275,32 +370,32 @@ export default function ReservaAlojamento() {
       if (hora < 12) {
         return {
           status: "fechado",
-          mensagem: "Reservas abrem hoje às 12h",
-          cor: "text-yellow-400"
+          mensagem: "Sistema fechado - Abre sexta-feira às 12h",
+          cor: "text-red-400"
         };
       } else {
         return {
           status: "aberto",
-          mensagem: "Reservas abertas até quinta-feira",
+          mensagem: "Sistema aberto - Fecha quinta-feira às 23:59",
           cor: "text-green-400"
         };
       }
     } else if (diaSemana === 4) { // Quinta-feira
       return {
         status: "aberto",
-        mensagem: "Reservas abertas até hoje 23:59",
+        mensagem: "Sistema aberto - Fecha hoje às 23:59",
         cor: "text-green-400"
       };
     } else if (diaSemana === 6 || diaSemana === 0) { // Sábado e domingo
       return {
         status: "aberto",
-        mensagem: "Reservas abertas até quinta-feira",
+        mensagem: "Sistema aberto - Fecha quinta-feira às 23:59",
         cor: "text-green-400"
       };
     } else { // Segunda, terça, quarta
       return {
         status: "aberto",
-        mensagem: "Reservas abertas até quinta-feira",
+        mensagem: "Sistema aberto - Fecha quinta-feira às 23:59",
         cor: "text-green-400"
       };
     }
@@ -308,7 +403,33 @@ export default function ReservaAlojamento() {
 
   // Função para verificar se é sexta-feira após 12h (mantida para compatibilidade)
   const verificarSexta12h = () => {
-    return verificarReservasAbertas();
+    return sistemaEstaAberto();
+  };
+
+  // Função para obter a segunda-feira da semana atual
+  const obterSegundaFeiraAtual = () => {
+    const hoje = new Date();
+    const diaSemana = hoje.getDay(); // 0 = domingo, 1 = segunda, 2 = terça, etc.
+    
+    // Calcular quantos dias voltar para chegar na segunda-feira da semana atual
+    let diasParaSegunda;
+    if (diaSemana === 0) { // Domingo
+      diasParaSegunda = 6;
+    } else if (diaSemana === 1) { // Segunda
+      diasParaSegunda = 0;
+    } else { // Terça a sábado
+      diasParaSegunda = diaSemana - 1;
+    }
+    
+    const segundaFeira = new Date(hoje);
+    segundaFeira.setDate(hoje.getDate() - diasParaSegunda);
+    
+    // Formatar data no formato YYYY-MM-DD
+    const anoResultado = segundaFeira.getFullYear();
+    const mesResultado = String(segundaFeira.getMonth() + 1).padStart(2, '0');
+    const diaResultado = String(segundaFeira.getDate()).padStart(2, '0');
+    
+    return `${anoResultado}-${mesResultado}-${diaResultado}`;
   };
 
   // Função para obter a segunda-feira da semana de uma data qualquer
@@ -365,26 +486,24 @@ export default function ReservaAlojamento() {
   };
 
   // Função para contar reservas por gênero na semana (por usuário único)
-  const contarReservasPorGenero = (dataSegunda: string) => {
-    const dataSegundaObj = new Date(dataSegunda);
-    const dataSextaObj = new Date(dataSegundaObj);
-    dataSextaObj.setDate(dataSegundaObj.getDate() + 4); // Segunda + 4 dias = Sexta
-    
-    // Buscar reservas que estão na mesma semana (entre segunda e sexta)
+  const contarReservasPorGenero = (dataReferencia: string) => {
+    // Normalizar para a sexta-feira da janela da data recebida
+    const sextaDaJanelaStr = obterSextaDaJanela(dataReferencia);
+    const inicioJanela = new Date(sextaDaJanelaStr);
+    inicioJanela.setHours(0, 0, 0, 0);
+    const fimJanela = new Date(inicioJanela);
+    fimJanela.setDate(inicioJanela.getDate() + 6);
+    fimJanela.setHours(23, 59, 59, 999);
+
     const reservasSemana = reservas.filter(reserva => {
       if (reserva.status !== "ativa") return false;
-      
       const dataReserva = new Date(reserva.semana);
-      const dataSegundaReserva = new Date(dataSegunda);
-      const dataSextaReserva = new Date(dataSextaObj);
-      
-      return dataReserva >= dataSegundaReserva && dataReserva <= dataSextaReserva;
+      return dataReserva >= inicioJanela && dataReserva <= fimJanela;
     });
-    
-    // Contar usuários únicos por gênero (não dias)
-    const usuariosMasculinos = new Set();
-    const usuariosFemininos = new Set();
-    
+
+    const usuariosMasculinos = new Set<string>();
+    const usuariosFemininos = new Set<string>();
+
     reservasSemana.forEach(reserva => {
       const email = reserva.criador || reserva.email;
       if (reserva.genero === "masculino" || reserva.genero === "homem") {
@@ -393,10 +512,10 @@ export default function ReservaAlojamento() {
         usuariosFemininos.add(email);
       }
     });
-    
-    return { 
-      masculinos: usuariosMasculinos.size, 
-      femininos: usuariosFemininos.size 
+
+    return {
+      masculinos: usuariosMasculinos.size,
+      femininos: usuariosFemininos.size
     };
   };
 
@@ -414,28 +533,46 @@ export default function ReservaAlojamento() {
 
   // Função para verificar se a lotação está máxima para um gênero
   const verificarLotacaoMaxima = (data: string, genero: string) => {
-    const { masculinos, femininos } = contarReservasPorGenero(data);
+    // Obter a sexta-feira da janela da data solicitada
+    const sextaDaJanela = obterSextaDaJanela(data);
+    const { masculinos, femininos } = contarReservasPorGenero(sextaDaJanela);
     const totalOcupado = masculinos + femininos;
+    
+    console.log("=== VERIFICAÇÃO DE LOTAÇÃO ===");
+    console.log("Data solicitada:", data);
+    console.log("Sexta da janela:", sextaDaJanela);
+    console.log("Masculinos:", masculinos);
+    console.log("Femininos:", femininos);
+    console.log("Total ocupado:", totalOcupado);
+    console.log("Gênero solicitado:", genero);
     
     // Se o sistema está lotado (8 vagas), ninguém pode reservar
     if (totalOcupado >= 8) {
+      console.log("❌ Sistema lotado (8/8)");
       return true;
     }
     
     // Se não está lotado, verificar por gênero específico
     if (genero === "masculino" || genero === "homem") {
-      return masculinos >= 4; // Máximo 4 usuários homens
+      const lotado = masculinos >= 4;
+      console.log(`Masculino lotado: ${lotado} (${masculinos}/4)`);
+      return lotado; // Máximo 4 usuários homens
     } else if (genero === "feminino" || genero === "mulher") {
-      return femininos >= 4; // Máximo 4 usuárias mulheres
+      const lotado = femininos >= 4;
+      console.log(`Feminino lotado: ${lotado} (${femininos}/4)`);
+      return lotado; // Máximo 4 usuárias mulheres
     }
     
+    console.log("✅ Lotação OK");
     return false;
   };
 
   // Função para verificar se há vagas disponíveis para a próxima semana
   const verificarVagasProximaSemana = () => {
-    const proximaSegunda = obterProximaSegunda();
-    const { masculinos, femininos } = contarReservasPorGenero(proximaSegunda);
+    const inicio = getInicioDaSemanaAtual(new Date());
+    const sextaStr = formatarDataISO(inicio);
+    // Contar pela janela sexta->quinta da semana ativa
+    const { masculinos, femininos } = contarReservasPorGenero(sextaStr);
     
     return {
       masculino: masculinos < 4,
@@ -446,7 +583,8 @@ export default function ReservaAlojamento() {
 
   // Função para obter status das vagas
   const obterStatusVagas = (data: string) => {
-    const { masculinos, femininos } = contarReservasPorGenero(data);
+    const sextaDaJanela = obterSextaDaJanela(data);
+    const { masculinos, femininos } = contarReservasPorGenero(sextaDaJanela);
     
     return {
       masculino: {
@@ -493,8 +631,15 @@ export default function ReservaAlojamento() {
     }
 
     // Verificar se pode criar reserva
+    console.log("=== ADD RESERVA - VERIFICAÇÃO ===");
+    console.log("FormData:", formData);
+    
     const statusReserva = verificarPodeCriarReserva(formData.semana, formData.genero);
+    console.log("Status da reserva:", statusReserva);
+    
     if (!statusReserva.pode) {
+      console.log("❌ Reserva rejeitada. Motivo:", statusReserva.motivo);
+      
       if (statusReserva.motivo === "horario") {
         const statusInfo = obterMensagemStatusReservas();
         showToast(`Reservas fechadas: ${statusInfo.mensagem}`, "error");
@@ -502,30 +647,41 @@ export default function ReservaAlojamento() {
         const { masculinos, femininos } = contarReservasPorGenero(formData.semana);
         const totalOcupado = masculinos + femininos;
         
+        console.log("Lotação - Masculinos:", masculinos, "Femininos:", femininos, "Total:", totalOcupado);
+        
         if (totalOcupado >= 8) {
           showToast(`Sistema lotado: Não há vagas disponíveis (${totalOcupado}/8 ocupadas)`, "error");
           // Limpar campos após sistema lotado
-          setFormData({
+                    setFormData({
             nome: "",
             genero: "",
-            semana: obterProximaSegunda()
+            semana: getDataPadraoReserva()
           });
-        } else {
+         } else {
           showToast(`Lotação máxima: Não há vagas disponíveis para ${formData.genero === "masculino" ? "homens" : "mulheres"} nesta data`, "error");
           // Limpar campos após lotação máxima por gênero
-          setFormData({
+                    setFormData({
             nome: "",
             genero: "",
-            semana: obterProximaSegunda()
+            semana: getDataPadraoReserva()
           });
+         }
+       } else if (statusReserva.motivo === "semana") {
+        const hoje = new Date();
+        const diaSemanaHoje = hoje.getDay();
+        const horaHoje = hoje.getHours();
+        
+        if (diaSemanaHoje === 5 && horaHoje < 12) {
+          showToast(`Data inválida: Reservas para próxima semana só abrem sexta-feira às 12h`, "error");
+        } else {
+          showToast(`Data inválida: Só é possível reservar para a semana atual`, "error");
         }
-      } else if (statusReserva.motivo === "semana") {
-        showToast(`Data inválida: Só é possível reservar para dias úteis até quinta-feira da semana atual`, "error");
+        
         // Limpar campos após data inválida
         setFormData({
           nome: "",
           genero: "",
-          semana: obterProximaSegunda()
+          semana: getDataPadraoReserva()
         });
       }
       return;
@@ -535,12 +691,12 @@ export default function ReservaAlojamento() {
     if (verificarDuplicidade(formData.semana, formData.genero, editandoId || undefined)) {
       showToast("Você já possui uma reserva para este dia", "error");
       // Limpar campos após reserva duplicada
-      setFormData({
+            setFormData({
         nome: "",
         genero: "",
-        semana: obterProximaSegunda()
+        semana: getDataPadraoReserva()
       });
-      return;
+       return;
     }
 
     setLoading(true);
@@ -565,7 +721,7 @@ export default function ReservaAlojamento() {
         setFormData({
           nome: "",
           genero: "",
-          semana: obterProximaSegunda()
+          semana: getDataPadraoReserva()
         });
       } else {
         reservaData.createdAt = serverTimestamp();
@@ -575,7 +731,7 @@ export default function ReservaAlojamento() {
         setFormData({
           nome: "",
           genero: "",
-          semana: obterProximaSegunda()
+          semana: getDataPadraoReserva()
         });
       }
     } catch (error: any) {
@@ -602,7 +758,7 @@ export default function ReservaAlojamento() {
     setFormData({
       nome: "",
       genero: "",
-      semana: obterProximaSegunda()
+      semana: getDataPadraoReserva()
     });
     setEditandoId(null);
   };
@@ -824,14 +980,16 @@ export default function ReservaAlojamento() {
           <p className="text-center text-gray-300 text-sm mb-4">
             Reservas abertas de sexta 12h até quinta-feira (incluindo fim de semana)
           </p>
+
           
           {(() => {
-            const proximaSegunda = obterProximaSegunda();
+            const inicio = getInicioDaSemanaAtual(new Date());
+            const sextaStr = formatarDataISO(inicio);
             const semanaAtual = obterSemanaAtual();
-            // Usar a semana atual se existir, senão usar a próxima semana
-            const dataParaContar = semanaAtual || proximaSegunda;
+            // Mostrar status da semana atual (que é onde as reservas estão abertas)
+            const dataParaContar = sextaStr;
             const { masculinos, femininos } = contarReservasPorGenero(dataParaContar);
-            const reservasAbertas = verificarReservasAbertas();
+            const reservasAbertas = sistemaEstaAberto();
             const statusInfo = obterMensagemStatusReservas();
             const totalOcupado = masculinos + femininos;
             const totalDisponivel = 8 - totalOcupado;
@@ -926,7 +1084,7 @@ export default function ReservaAlojamento() {
               <label className="block text-white text-sm font-medium mb-2">Data da Semana *</label>
               <input
                 type="date"
-                value={formData.semana || obterProximaSegunda()}
+                value={formData.semana || getDataPadraoReserva()}
                 onChange={(e) => setFormData({...formData, semana: e.target.value})}
                 className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent text-white"
                 style={{
@@ -935,21 +1093,24 @@ export default function ReservaAlojamento() {
                   borderColor: 'rgba(255, 255, 255, 0.2)',
                   color: 'white'
                 }}
+                placeholder="dd/mm/aaaa"
                 required
               />
               <p className="text-xs text-gray-400 mt-1">
-                Só é possível reservar para dias úteis até quinta-feira da semana atual
+                Só é possível reservar para a semana atual (próxima semana abre sexta às 12h)
               </p>
             </div>
 
             <div className="md:col-span-2 lg:col-span-3 flex gap-4">
-                              <button
-                  type="submit"
-                  disabled={loading || (!formData.nome || !formData.genero || !formData.semana)}
-                  className="flex-1 bg-gradient-to-r from-cyan-500 to-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:from-cyan-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                >
+              <button
+                type="submit"
+                disabled={loading || (!formData.nome || !formData.genero || !formData.semana)}
+                className="flex-1 bg-gradient-to-r from-cyan-500 to-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:from-cyan-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
                 {loading ? "Salvando..." : (editandoId ? "Atualizar Reserva" : "Criar Reserva")}
               </button>
+              
+
               
               {/* Mensagens de status do botão */}
               {!!formData.genero && !!formData.semana && (() => {
@@ -986,12 +1147,25 @@ export default function ReservaAlojamento() {
                 }
 
                                   if (!status.pode && status.motivo === "semana") {
-                    return (
-                      <div className="flex-1 bg-blue-500/20 border border-blue-400/30 rounded-lg p-3 text-blue-300 text-sm">
-                        <div className="font-medium">Data Inválida</div>
-                        <div>Só é possível reservar para dias úteis até quinta-feira da semana atual</div>
-                      </div>
-                    );
+                    const hoje = new Date();
+                    const diaSemanaHoje = hoje.getDay();
+                    const horaHoje = hoje.getHours();
+                    
+                    if (diaSemanaHoje === 5 && horaHoje < 12) {
+                      return (
+                        <div className="flex-1 bg-blue-500/20 border border-blue-400/30 rounded-lg p-3 text-blue-300 text-sm">
+                          <div className="font-medium">Próxima Semana Fechada</div>
+                          <div>Reservas para próxima semana só abrem sexta-feira às 12h</div>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="flex-1 bg-blue-500/20 border border-blue-400/30 rounded-lg p-3 text-blue-300 text-sm">
+                          <div className="font-medium">Data Inválida</div>
+                          <div>Só é possível reservar para a semana atual</div>
+                        </div>
+                      );
+                    }
                   }
                 
                 return null;
